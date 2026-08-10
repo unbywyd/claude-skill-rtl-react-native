@@ -234,6 +234,104 @@ module.exports = {
     },
 
     // -----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    'no-hardcoded-text': {
+      meta: {
+        type: 'problem',
+        docs: { description: 'User-facing strings must come from the translation layer' },
+        schema: [
+          {
+            type: 'object',
+            properties: {
+              props: { type: 'array', items: { type: 'string' } },
+              ignore: { type: 'array', items: { type: 'string' } },
+            },
+            additionalProperties: false,
+          },
+        ],
+      },
+      create(context) {
+        const opts = context.options[0] || {};
+        const PROPS = new Set(
+          opts.props || [
+            'placeholder',
+            'title',
+            'label',
+            'accessibilityLabel',
+            'accessibilityHint',
+            'confirmText',
+            'cancelText',
+            'submitText',
+            'emptyText',
+          ]
+        );
+        const IGNORE = new Set(opts.ignore || []);
+
+        // Only flag things that read like prose: at least two letters, and at
+        // least one space OR a capitalised word. Avoids firing on "px", "row",
+        // testIDs, keys, urls, and other machine strings.
+        const looksLikeProse = (v) =>
+          typeof v === 'string' &&
+          v.trim().length > 2 &&
+          /[A-Za-z]{2}/.test(v) &&
+          !/^[a-z0-9_.-]+$/.test(v.trim()) &&
+          !/^https?:\/\//.test(v.trim());
+
+        const report = (node, what) =>
+          context.report({
+            node,
+            message:
+              `Hardcoded user-facing string (${what}). In a multi-language app this never ` +
+              'translates, and a Latin literal dropped into RTL text also reorders around its ' +
+              "neighbours (BiDi). Move it to the translation layer: t('namespace.key'). " +
+              'Interpolate values through the key rather than concatenating.',
+          });
+
+        return {
+          // <Text>Save</Text>
+          JSXText(node) {
+            const v = node.value;
+            if (looksLikeProse(v)) report(node, 'JSX text');
+          },
+          // placeholder="Enter name" / title={'Cancel'}
+          JSXAttribute(node) {
+            const name = node.name && node.name.name;
+            if (!PROPS.has(name) || IGNORE.has(name)) return;
+            const val = node.value;
+            if (!val) return;
+            if (val.type === 'Literal' && looksLikeProse(val.value)) {
+              report(val, `${name} prop`);
+            }
+            if (
+              val.type === 'JSXExpressionContainer' &&
+              val.expression &&
+              val.expression.type === 'Literal' &&
+              looksLikeProse(val.expression.value)
+            ) {
+              report(val.expression, `${name} prop`);
+            }
+          },
+          // Alert.alert('Error', 'Something went wrong')
+          CallExpression(node) {
+            const c = node.callee;
+            const isAlert =
+              c &&
+              c.type === 'MemberExpression' &&
+              c.object &&
+              c.object.name === 'Alert' &&
+              c.property &&
+              c.property.name === 'alert';
+            if (!isAlert) return;
+            for (const arg of node.arguments) {
+              if (arg.type === 'Literal' && looksLikeProse(arg.value)) {
+                report(arg, 'Alert.alert argument');
+              }
+            }
+          },
+        };
+      },
+    },
+
     'require-bidi-isolate': {
       meta: {
         type: 'problem',

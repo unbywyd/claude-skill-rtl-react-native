@@ -55,6 +55,80 @@ already mirrored. That is the bug, not the fix.
 
 ---
 
+## 1b. No hardcoded user-facing strings — ever
+
+If the app supports more than one language, **every string a user can see must come from the
+translation layer.** This is not style guidance; a hardcoded string is a defect with three
+distinct consequences:
+
+1. **It never translates.** It stays in the authoring language forever, in every locale.
+2. **It breaks direction.** A Latin string dropped into an RTL screen carries its own BiDi
+   behaviour, so it reorders around the text near it (§4).
+3. **It is invisible in review.** Nothing fails, nothing warns — the screen just renders
+   the wrong language for users who never file a bug about it.
+
+```jsx
+// ❌ every one of these ships untranslated
+<Text>Save</Text>
+<Text>{`Order #${id}`}</Text>
+<TextInput placeholder="Enter name" />
+<Button title="Cancel" />
+Alert.alert('Error', 'Something went wrong');
+accessibilityLabel="Close"
+navigation.setOptions({ title: 'Profile' })
+
+// ✅
+const { t } = useTranslation();
+<Text>{t('common.save')}</Text>
+<Text>{t('orders.number', { id })}</Text>
+<TextInput placeholder={t('profile.namePlaceholder')} />
+```
+
+**The places routinely missed** — check all of them, not just `<Text>`:
+
+`placeholder` · `title` · `label` · `accessibilityLabel` · `accessibilityHint` ·
+`Alert.alert()` · `confirmText` / `cancelText` · navigation `title` and tab labels ·
+validation and error messages · empty-state and loading copy · date/number formats ·
+`Share.share()` · push-notification copy built on the client · `toast`/`snackbar` text.
+
+**Interpolate, never concatenate.** Word order differs between languages, and concatenation
+also creates the BiDi break in §4:
+
+```jsx
+// ❌ assumes English word order; also splits the number out of the sentence
+<Text>{count} {t('items')} {t('remaining')}</Text>
+
+// ✅ one key, the library places the value
+<Text>{t('cart.remaining', { count })}</Text>   // "נותרו {{count}} פריטים"
+```
+
+Use the plural forms your i18n library provides rather than an `if (count === 1)` branch —
+Hebrew, Arabic and Russian have plural categories English does not.
+
+### Auditing an existing codebase
+
+Hardcoded strings hide from review, so find them mechanically:
+
+```bash
+# JSX text nodes that are plain words
+grep -rnE '>[A-Za-z][A-Za-z ]{2,}<' src/ --include=*.tsx
+
+# string literals in the props that are most often forgotten
+grep -rnE '(placeholder|title|label|accessibilityLabel|accessibilityHint)=("|\{")' src/ --include=*.tsx
+
+# alerts built from literals
+grep -rn 'Alert.alert(' src/ --include=*.tsx
+```
+
+Then enforce it so it cannot come back — `rtl/no-hardcoded-text` in the bundled lint plugin
+(§9) flags literal user-facing strings in JSX and in the props above.
+
+> When adding a language to an existing app, treat "no hardcoded strings" as a **precondition**,
+> not a follow-up task. Direction work on top of untranslated copy produces screens that are
+> correctly mirrored and still wrong.
+
+---
+
 ## 2. `I18nManager.isRTL` is unreliable — never read it
 
 **Measured, 8+ configurations, both platforms:**
@@ -212,11 +286,25 @@ export default [{ plugins: { rtl }, rules: {
   'rtl/no-dead-logical-props': 'error',
   'rtl/no-textalign-start': 'error',
   'rtl/no-direction-ternary': 'error',
+  'rtl/no-hardcoded-text': 'error',
   'rtl/require-bidi-isolate': 'warn',
 }}];
 ```
 
-Six rules, unit-tested. Each error message names the measurement behind it.
+Seven rules, unit-tested. Each error message names the measurement behind it.
+
+`no-hardcoded-text` accepts options if the defaults are too broad or too narrow for a
+codebase:
+
+```js
+'rtl/no-hardcoded-text': ['error', {
+  props: ['placeholder', 'title', 'label', 'accessibilityLabel'],  // props to check
+  ignore: ['testID'],                                             // props to skip
+}]
+```
+
+It deliberately only flags strings that read like prose — two or more letters, not a
+lowercase identifier, not a URL — so `testID`, style values and keys do not trip it.
 
 ---
 

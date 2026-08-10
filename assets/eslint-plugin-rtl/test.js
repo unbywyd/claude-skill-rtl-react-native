@@ -16,10 +16,20 @@ const ruleTester = new RuleTester({
   languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
 });
 
+// no-hardcoded-text inspects JSX nodes, which the default parser options do not
+// enable. Give it its own tester rather than turning JSX on globally.
+const jsxTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: 'module',
+    parserOptions: { ecmaFeatures: { jsx: true } },
+  },
+});
+
 let failures = 0;
-function run(name, rule, cases) {
+function run(name, rule, cases, tester) {
   try {
-    ruleTester.run(name, rule, cases);
+    (tester || ruleTester).run(name, rule, cases);
     console.log(`  ✓ ${name}`);
   } catch (err) {
     failures++;
@@ -108,6 +118,23 @@ run('no-direction-ternary', plugin.rules['no-direction-ternary'], {
     },
   ],
 });
+
+run('no-hardcoded-text', plugin.rules['no-hardcoded-text'], {
+  valid: [
+    { code: 'const a = <Text>{t("common.save")}</Text>;' },
+    { code: 'const a = <TextInput placeholder={t("profile.name")} />;' },
+    // machine strings must not trip it
+    { code: 'const a = <View testID="save-button" />;' },
+    { code: 'const a = <Text>{count}</Text>;' },
+    { code: 'const s = { title: "row" };' },
+  ],
+  invalid: [
+    { code: 'const a = <Text>Save changes</Text>;', errors: 1 },
+    { code: 'const a = <TextInput placeholder="Enter name" />;', errors: 1 },
+    { code: 'const a = <Foo title={"Cancel now"} />;', errors: 1 },
+    { code: 'Alert.alert("Error", "Something went wrong");', errors: 2 },
+  ],
+}, jsxTester);
 
 run('require-bidi-isolate', plugin.rules['require-bidi-isolate'], {
   valid: [
