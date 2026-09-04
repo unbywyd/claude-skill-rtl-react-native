@@ -1436,6 +1436,23 @@ All rows carry `textAlign: 'left'`:
 | nested 2 deep | `Text` | end (right) — mirrored |
 | `'center'` | `Text` | centred — untouched |
 
+### T30c — is the input KEEPING the value, or IGNORING it?
+
+`'left'` landing left is also what a *dropped* property looks like, so T30b alone does not
+prove "not mirrored". Three control rows in the same rtl island settle it:
+
+| `textAlign` | Result |
+| --- | --- |
+| `'right'` | **end (right)** |
+| `'center'` | **centred** |
+| *(absent)* | **start (left)** |
+
+Every value is honoured literally — the input keeps the physical value.
+
+⚠️ **An absent `textAlign` on a `<TextInput>` defaults to the LEFT inside an RTL island.**
+Forgetting it puts the field on the wrong edge in Hebrew. This is the opposite of `<Text>`,
+where omitting it is harmless on Android. **On an input the property is mandatory.**
+
 `<Text>` goes through Yoga; `<TextInput>` resolves alignment in the platform's own text
 widget and keeps the physical value. **Nesting depth is irrelevant — the element type is the
 whole difference.**
