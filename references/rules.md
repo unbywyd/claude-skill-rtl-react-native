@@ -976,6 +976,12 @@ Also confirmed here: an explicit `textAlign` **overrides layout direction** — 
 `textAlign: 'left'` row stayed left-aligned inside the RTL screen. That is what makes it the
 correct tool for always-LTR data.
 
+> ⚠️ **Scope correction (R30).** The sentence above is true for the lever measured here —
+> `forceRTL` / app-language RTL — and **false inside a `direction` island**, which is the
+> lever R22 recommends and `DirectionProvider` ships. There, Yoga mirrors `textAlign` on a
+> `<Text>`: `'left'` renders on the **right**. A `<TextInput>` is not mirrored and keeps the
+> physical value. See R30 below; do not carry this paragraph over to a `direction` setup.
+
 ---
 
 ## R20 · Platform asymmetry: iOS forgives what Android punishes — always write the intersection
@@ -1365,7 +1371,8 @@ Fabric, in both directions, with a runtime language switch and no reload.
 // 3. Only two things Yoga cannot infer — take them from the SAME state, via the hook:
 const { isRTL } = useDirection();
 <Icon style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }} />   // directional icons
-<TextInput style={{ textAlign: isRTL ? 'right' : 'left' }} />  // input alignment
+<TextInput style={{ textAlign: isRTL ? 'right' : 'left' }} />  // input alignment — physical
+<Text style={{ textAlign: 'left' }} />                        // text alignment — MIRRORED, see R30
 
 // 4. Always-LTR values keep their bidi isolation, independently of all the above:
 <Text>{'⁦'}{phone}{'⁩'}</Text>                        // +972 54-123-4567
@@ -1387,6 +1394,72 @@ const { isRTL } = useDirection();
 - BiDi isolation on every always-LTR value. Orthogonal to direction, and required regardless.
 
 **Cost:** one provider at the root, one hook at two call sites per screen. That is the whole thing.
+
+---
+
+---
+
+## R30 · Inside a `direction` island, `textAlign` is mirrored on `<Text>` and not on `<TextInput>`
+
+**Status:** ✅ measured on Android (T30, T30b). Galaxy S21 Ultra, Android 15, RN 0.86.2 /
+Fabric, app language `he`. **iOS not yet measured — the open item.**
+
+**This is the sharpest trap in the set**, because a screen with the bug looks half-correct:
+one hook value feeds a label and an input, the input renders correctly, and its correctness
+is what hides the label's error.
+
+### T30 — `<Text>`, one island, Latin strings
+
+Latin on purpose: Hebrew right-aligns under either behaviour (R13), which is exactly how a
+wrong `textAlign` stays invisible. Card spanning x=64..1010:
+
+| Island | `textAlign` | ink x | Sits against |
+| --- | --- | --- | --- |
+| `rtl` | *(none)* | 619..925 | end (right) |
+| `rtl` | `'left'` | 608..974 | **end (right)** |
+| `rtl` | `'right'` | 119..507 | **start (left)** |
+| `ltr` | *(none)* | 104..424 | start (left) |
+| `ltr` | `'left'` | 104..484 | start (left) |
+| `ltr` | `'right'` | 571..973 | end (right) |
+
+Yoga resolves `textAlign` the way it resolves `flex-start` — it **mirrors** it. The value
+names an edge in the unmirrored space, so inside RTL `'left'` means the start of the line.
+
+### T30b — the same island, other elements
+
+All rows carry `textAlign: 'left'`:
+
+| Row | Element | Sits against |
+| --- | --- | --- |
+| placeholder | `TextInput` | **start (left)** — not mirrored |
+| value | `TextInput` | **start (left)** — not mirrored |
+| nested 2 deep | `Text` | end (right) — mirrored |
+| `'center'` | `Text` | centred — untouched |
+
+`<Text>` goes through Yoga; `<TextInput>` resolves alignment in the platform's own text
+widget and keeps the physical value. **Nesting depth is irrelevant — the element type is the
+whole difference.**
+
+### Rule for the agent
+
+> Under a `direction` provider (R22 / `DirectionProvider`):
+>
+> - `<Text>` at the reading edge → `textAlign: 'left'` in **both** directions.
+> - `<TextInput>` at the reading edge → `isRTL ? 'right' : 'left'` (physical, unmirrored).
+> - Always-LTR data in a `<Text>` → physical `'right'` inside RTL, plus a BiDi isolate for
+>   character order (R14). The isolate and the alignment fix different halves; neither alone
+>   is enough.
+> - `'center'` → unaffected.
+>
+> Keep both values on the hook (`textAlign`, `textAlignInput`) so a call site cannot pick the
+> wrong one by accident.
+
+**Scope.** This applies to a `direction` island only. Under `forceRTL` / app-language RTL
+nothing mirrors the property and the physical value is right on both elements — which is
+what R12 measured, and why R12's closing paragraph must not be carried across.
+
+**Found in production, not in the lab:** a Hebrew login screen whose field label sat on the
+wrong edge while the phone input beside it looked perfect.
 
 ---
 

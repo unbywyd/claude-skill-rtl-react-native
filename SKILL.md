@@ -169,13 +169,45 @@ language switch and **no reload**:
 // 2. Inside: plain logical values. Yoga mirrors them.
 <View style={{ flexDirection: 'row', marginStart: 16 }} />
 
-// 3. The only two things Yoga cannot infer — from the SAME state, never I18nManager:
-const { isRTL } = useDirection();
+// 3. What Yoga cannot infer — from the SAME state, never I18nManager:
+const { isRTL, textAlign, textAlignInput } = useDirection();
 <Icon style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }} />
-<TextInput style={{ textAlign: isRTL ? 'right' : 'left' }} />
+
+// 4. textAlign: TWO rules, because the two elements behave OPPOSITELY (T30/T30b).
+<Text style={{ textAlign }} />            // 'left' in BOTH directions — Yoga mirrors it
+<TextInput style={{ textAlign: textAlignInput }} />  // physical — NOT mirrored
 ```
 
 Implementation to copy: [`assets/direction.tsx`](assets/direction.tsx).
+
+### ⚠️ `textAlign` is mirrored on `<Text>` and not on `<TextInput>`
+
+The single sharpest trap in this file, because one hook value feeding both elements makes
+the input look right while the label is wrong — and the input's correctness hides the error.
+
+Measured inside one `direction: 'rtl'` island, same property, same value `'left'`:
+
+| Element | Renders | Because |
+| --- | --- | --- |
+| `<Text>` | **right** (start edge) | resolved by Yoga, which mirrors it like `flex-start` |
+| `<TextInput>` | **left** | resolved in the platform text widget, physical value survives |
+
+So under `DirectionProvider`:
+
+```jsx
+<Text style={{ textAlign }} />                       // always 'left' — 'left' IS the start
+<TextInput style={{ textAlign: textAlignInput }} />  // isRTL ? 'right' : 'left'
+```
+
+Writing `isRTL ? 'right' : 'left'` on a **`<Text>`** mirrors a second time and lands the text
+on the wrong edge — the §1 double flip, in the one property §1 does not cover.
+
+`textAlign: 'center'` has no start/end sense and is untouched by either mechanism.
+
+> **This applies only under a `direction` provider.** With `forceRTL` / app-language RTL
+> nothing mirrors the property, and the physical value is correct on both elements. Both
+> approaches produce "an RTL app"; only one mirrors `textAlign`. Know which lever you are
+> pulling.
 
 **Place `direction` on the screen's scroll container** (or its `contentContainerStyle`) —
 verified on both platforms. Only the subtree inside the provider mirrors; a global header
@@ -216,7 +248,7 @@ No error, no warning, wrong result:
 
 | Write this | What happens |
 | --- | --- |
-| `textAlign: 'start'` | **Not a valid RN value.** Silently ignored. Use `'left'`/`'right'`. |
+| `textAlign: 'start'` | **Not a valid RN value.** Silently ignored. Use `'left'`/`'right'` — and see §3 for which one, it differs between `<Text>` and `<TextInput>`. |
 | `borderInlineStartWidth` | **Does not exist.** Renders no border. Use `borderStartWidth`. |
 | `writingDirection` to align text | Does **not** control alignment. |
 | `shadowOffset` on Android | Does not render at all. Use `boxShadow`. |
@@ -317,7 +349,9 @@ lowercase identifier, not a URL — so `testID`, style values and keys do not tr
 | "The icon points the wrong way" | Keyed off `I18nManager.isRTL`. Use `useDirection()`. |
 | "Layout is flipped the wrong way" | A double flip — remove the direction ternary (§1). |
 | "The `+` moved to the end of the phone" | BiDi weak character. Isolate the value (§4). |
-| "Text is left on iOS, fine on Android" | Set `textAlign` explicitly from app state. |
+| "Text is left on iOS, fine on Android" | Set `textAlign` explicitly from app state — the right one per element (§3). |
+| "The label is on the wrong edge but the input next to it is fine" | One `textAlign` value fed both. `<Text>` is mirrored by the island, `<TextInput>` is not (§3). |
+| "It was correct until I wrapped the app in DirectionProvider" | `textAlign` on `<Text>` now mirrors. Drop the `isRTL ?` ternary there (§3). |
 | "Blur only tints on Android" | Missing one of the four blur conditions (§7). |
 | "The keyboard covers the input" | Edge-to-edge killed `adjustResize` (§6). |
 | "It looks right on my device" | Not evidence. Read the code (§8.4). |

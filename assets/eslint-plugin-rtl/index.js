@@ -221,12 +221,20 @@ module.exports = {
             if (!DIRECTION_SENSITIVE.has(key)) return;
             if (!node.value || node.value.type !== 'ConditionalExpression') return;
             if (!isDirectionTest(node.value.test)) return;
+            const extra =
+              key === 'textAlign'
+                ? ' — NOTE: on a <TextInput> this ternary is CORRECT (R30: an input is not ' +
+                  'mirrored by a direction island, a <Text> is). If this style is for an ' +
+                  'input, keep the ternary and name it so, e.g. textAlignInput from ' +
+                  'useDirection(); the plain textAlign key is for <Text>.'
+                : '';
             context.report({
               node,
               message:
                 `\`${key}\` chosen by a direction ternary is the DOUBLE FLIP (T2): RN already ` +
                 'mirrors logical values, so this cancels the mirroring and lands the element on ' +
-                `the wrong side. Write the plain logical value and let the layout direction do it.`,
+                `the wrong side. Write the plain logical value and let the layout direction do it.` +
+                extra,
             });
           },
         };

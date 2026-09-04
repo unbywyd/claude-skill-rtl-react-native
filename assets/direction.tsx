@@ -67,8 +67,49 @@ type DirectionValue = {
   isRTL: boolean;
   /** Multiplier for directional icons: transform: [{ scaleX: flip }]. */
   flip: 1 | -1;
-  /** Ready-made textAlign for text that must hug the reading edge. */
-  textAlign: 'left' | 'right';
+  /**
+   * textAlign for text that must hug the READING edge — a label, a heading,
+   * body copy.
+   *
+   * Always 'left', and that is not a typo. This provider puts `direction` on
+   * the subtree, and Yoga mirrors textAlign exactly like it mirrors
+   * flex-start: inside an RTL subtree 'left' IS the start of the line. Asking
+   * for 'right' here mirrors a second time and lands the text on the wrong
+   * edge — the double flip §1 opens with.
+   *
+   * Measured (T30, Galaxy S21 Ultra, RN 0.81 Fabric, Latin strings so the
+   * edge is unambiguous):
+   *
+   *   direction:'rtl' island   left -> right edge    right -> left edge
+   *   direction:'ltr' island   left -> left edge     right -> right edge
+   *
+   * It stays explicit rather than omitted because on iOS an absent textAlign
+   * falls back to the string's own script, so Latin content inside a Hebrew
+   * screen drifts to the wrong edge.
+   */
+  textAlign: 'left';
+  /**
+   * textAlign for a <TextInput> hugging the reading edge.
+   *
+   * Derived from the direction, unlike `textAlign` above, because a TextInput
+   * is NOT mirrored by the island: it resolves alignment in the platform's own
+   * text widget rather than through Yoga, so the physical value survives.
+   *
+   * Measured (T30b, one island, one property, two elements):
+   *
+   *   <Text>      textAlign 'left' -> renders RIGHT (mirrored by Yoga)
+   *   <TextInput> textAlign 'left' -> renders LEFT  (not mirrored)
+   *
+   * This is the trap that produced the rule: one hook value fed a label and an
+   * input on the same screen, the input rendered correctly, and its
+   * correctness hid the label's error.
+   *
+   * Always-LTR data — a phone, an email, an IBAN, an id — also wants a
+   * physical value, and in a <Text> that means 'right' inside RTL (Yoga
+   * mirrors it to the start edge). Pair it with a BiDi isolate either way:
+   * this pins the block, the isolate fixes character order (§4).
+   */
+  textAlignInput: 'left' | 'right';
 };
 
 const DirectionContext = createContext<DirectionValue>({
@@ -76,6 +117,7 @@ const DirectionContext = createContext<DirectionValue>({
   isRTL: false,
   flip: 1,
   textAlign: 'left',
+  textAlignInput: 'left',
 });
 
 export function DirectionProvider({
@@ -95,7 +137,11 @@ export function DirectionProvider({
       dir,
       isRTL: dir === 'rtl',
       flip: dir === 'rtl' ? -1 : 1,
-      textAlign: dir === 'rtl' ? 'right' : 'left',
+      // 'left' in BOTH directions: Yoga has already mirrored the subtree, so
+      // this is the start edge either way. See the note on the type above.
+      textAlign: 'left',
+      // Physical, because a TextInput is not mirrored by the island (T30b).
+      textAlignInput: dir === 'rtl' ? 'right' : 'left',
     }),
     [dir],
   );
