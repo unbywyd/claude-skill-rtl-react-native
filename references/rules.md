@@ -1449,9 +1449,45 @@ prove "not mirrored". Three control rows in the same rtl island settle it:
 
 Every value is honoured literally — the input keeps the physical value.
 
-⚠️ **An absent `textAlign` on a `<TextInput>` defaults to the LEFT inside an RTL island.**
-Forgetting it puts the field on the wrong edge in Hebrew. This is the opposite of `<Text>`,
-where omitting it is harmless on Android. **On an input the property is mandatory.**
+### T30d — the DEFAULT is a THIRD mechanism, and it differs per element AND per platform
+
+Measured with the script varied, because neither script alone can see this: Hebrew hides a
+wrong explicit `textAlign` (R13), and Latin hides a content-based *default*.
+
+Android (Galaxy S21 Ultra) — every row omits `textAlign`:
+
+| Island | Element | String | Sits against |
+| --- | --- | --- | --- |
+| `rtl` | `Text` | Latin / Hebrew | right / right |
+| `rtl` | `TextInput` | Latin / Hebrew | **left / right** |
+| `ltr` | `Text` | Latin / Hebrew | left / left |
+
+iOS (iPhone 16 Pro Max, 26.6.1), same markup: **all four `<Text>` cells land LEFT** — rtl
+island and ltr island, Latin and Hebrew alike. `<TextInput>` matches Android exactly
+(Latin left, Hebrew right).
+
+| Element | Android default | iOS default |
+| --- | --- | --- |
+| `<Text>` | island direction (script ignored) | **app UI direction** (island *and* script ignored) |
+| `<TextInput>` | content, first-strong | content, first-strong — same |
+
+iOS mechanism, from RN's own source: `RCTAttributedTextUtils.mm:200-206` flips an explicit
+Left/Right by the island's `layoutDirection`, and passes `Natural` through untouched to
+`NSTextAlignmentNatural` — which UIKit resolves against the **app's interface direction**,
+not the paragraph. In an app driving direction from state, that interface direction is LTR,
+because `forceRTL` never applied (R22).
+
+⚠️ **So the property is mandatory on BOTH elements, for different reasons.**
+
+- On a `<TextInput>`, an absent value aligns **per string**: the name field right, the email
+  field left, and a field flips as the user types its first strong character. Two fields in
+  one Hebrew form disagree with each other.
+- On a `<Text>`, an absent value renders a Hebrew label on the **left edge on iOS** while the
+  identical code is correct on Android. A Hebrew-only review on an Android device cannot see
+  it — the worst kind of split.
+
+**For an explicit value there is no platform split at all:** `<Text>` is mirrored by the
+island on both, `<TextInput>` is physical on both.
 
 `<Text>` goes through Yoga; `<TextInput>` resolves alignment in the platform's own text
 widget and keeps the physical value. **Nesting depth is irrelevant — the element type is the

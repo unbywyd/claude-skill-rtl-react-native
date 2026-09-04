@@ -204,6 +204,25 @@ on the wrong edge — the §1 double flip, in the one property §1 does not cove
 
 `textAlign: 'center'` has no start/end sense and is untouched by either mechanism.
 
+**Never omit it on either element.** The defaults disagree three ways, measured on both
+platforms:
+
+| Element | Android default | iOS default |
+| --- | --- | --- |
+| `<Text>` | the island's direction | **the app's UI direction** — LTR in any app driving direction from state |
+| `<TextInput>` | the content, first-strong | the content, first-strong |
+
+Two distinct bugs come out of that:
+
+- An input with no `textAlign` aligns **per value**: the name field right, the email field
+  left, and a field flips as the user types its first strong character. Two fields in one
+  Hebrew form disagree with each other.
+- A `<Text>` with no `textAlign` puts a Hebrew label on the **left edge on iOS**, while the
+  same code is correct on Android — invisible to a Hebrew-only review done on Android.
+
+For an **explicit** value there is no platform split: mirrored on `<Text>`, physical on
+`<TextInput>`, on both platforms.
+
 > **This applies only under a `direction` provider.** With `forceRTL` / app-language RTL
 > nothing mirrors the property, and the physical value is correct on both elements. Both
 > approaches produce "an RTL app"; only one mirrors `textAlign`. Know which lever you are
@@ -352,6 +371,8 @@ lowercase identifier, not a URL — so `testID`, style values and keys do not tr
 | "Text is left on iOS, fine on Android" | Set `textAlign` explicitly from app state — the right one per element (§3). |
 | "The label is on the wrong edge but the input next to it is fine" | One `textAlign` value fed both. `<Text>` is mirrored by the island, `<TextInput>` is not (§3). |
 | "It was correct until I wrapped the app in DirectionProvider" | `textAlign` on `<Text>` now mirrors. Drop the `isRTL ?` ternary there (§3). |
+| "The Hebrew label is on the left, but only on iOS" | No `textAlign` on that `<Text>`. iOS falls back to the app's UI direction, Android to the island's (§3). |
+| "The field jumps sides as the user types" | No `textAlign` on that `<TextInput>`. Its default is first-strong, so it follows the value (§3). |
 | "Blur only tints on Android" | Missing one of the four blur conditions (§7). |
 | "The keyboard covers the input" | Edge-to-edge killed `adjustResize` (§6). |
 | "It looks right on my device" | Not evidence. Read the code (§8.4). |

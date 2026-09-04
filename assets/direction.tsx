@@ -83,9 +83,15 @@ type DirectionValue = {
    *   direction:'rtl' island   left -> right edge    right -> left edge
    *   direction:'ltr' island   left -> left edge     right -> right edge
    *
-   * It stays explicit rather than omitted because on iOS an absent textAlign
-   * falls back to the string's own script, so Latin content inside a Hebrew
-   * screen drifts to the wrong edge.
+   * It stays explicit rather than omitted, and that is not caution — an absent
+   * textAlign resolves DIFFERENTLY on each platform (T30d):
+   *
+   *   Android: the island's direction.
+   *   iOS:     the app's UI direction, which is LTR in any app driving
+   *            direction from state — so a Hebrew label lands on the LEFT.
+   *
+   * Identical code, correct on Android, wrong on iOS, invisible to a
+   * Hebrew-only review done on an Android device.
    */
   textAlign: 'left';
   /**
