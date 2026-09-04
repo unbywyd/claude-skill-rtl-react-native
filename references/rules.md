@@ -1556,6 +1556,13 @@ because `forceRTL` never applied (R22).
 - On a `<TextInput>`, an absent value aligns **per string**: the name field right, the email
   field left, and a field flips as the user types its first strong character. Two fields in
   one Hebrew form disagree with each other.
+
+  **It is literally the first strong character, not the script of the string** (T30h,
+  measured on both platforms). `Acme שלום עולם שלום` — Latin first, Hebrew bulk — aligns
+  LEFT; `שלום Acme Corporation Limited` — Hebrew first, Latin bulk — aligns RIGHT. The
+  majority script loses both times, on Android and iOS alike. So the edge is decided by a
+  character **the user did not choose**, no data-side care can fix it, and only an explicit
+  `textAlign` does.
 - On a `<Text>`, an absent value renders a Hebrew label on the **left edge on iOS** while the
   identical code is correct on Android. A Hebrew-only review on an Android device cannot see
   it — the worst kind of split.
