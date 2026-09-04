@@ -180,6 +180,30 @@ const { isRTL, textAlign, textAlignInput } = useDirection();
 
 Implementation to copy: [`assets/direction.tsx`](assets/direction.tsx).
 
+### Better: use the primitives and never apply the values by hand
+
+[`assets/rtl-primitives.tsx`](assets/rtl-primitives.tsx) makes the wrong version
+**unwriteable** for the common cases:
+
+| Use | Instead of |
+| --- | --- |
+| `<Label>` | `<Text style={{ textAlign }}>` — text at the reading edge |
+| `<Field>` | `<TextInput textAlign={…}>` — an input at the reading edge |
+| `<Ltr>` | a `<Text>` holding always-LTR data: phone, email, IBAN, id |
+| `<Num>` | a value inside a sentence — isolation only, no block alignment |
+| `<LtrField>` | an email / phone / IBAN input |
+
+The reason is specific, and it is this file's own history. The defect that produced §3's
+element split came from a **correct** code sample: `textAlign: isRTL ? 'right' : 'left'` is
+right on a `TextInput` and wrong on a `<Text>`. It was read, copied, and applied to the wrong
+element. The prose around it said nothing false. **A sample cannot state its own scope**, and
+the reader fills the gap with the most useful assumption — so the only fix that reaches it is
+to put the scope in the name.
+
+They are **not a closed system**: a badge from a UI kit, a chart's axis labels, a third-party
+component taking a `title` string all render text the primitives never see. For those, the
+rules below are still the answer.
+
 ### ⚠️ `textAlign` is mirrored on `<Text>` and not on `<TextInput>`
 
 The single sharpest trap in this file, because one hook value feeding both elements makes
@@ -346,13 +370,33 @@ export default [{ plugins: { rtl }, rules: {
   'rtl/no-physical-styles': 'error',
   'rtl/no-dead-logical-props': 'error',
   'rtl/no-textalign-start': 'error',
+  'rtl/no-hardcoded-textalign': 'error',
   'rtl/no-direction-ternary': 'error',
+  'rtl/no-literal-row-reverse': 'error',
+  'rtl/no-writingdirection-with-textalign': 'error',
   'rtl/no-hardcoded-text': 'error',
+  'rtl/no-hardcoded-webview-dir': 'error',
+  'rtl/require-icon-flip': 'error',
   'rtl/require-bidi-isolate': 'warn',
 }}];
 ```
 
-Seven rules, unit-tested. Each error message names the measurement behind it.
+Twelve rules, unit-tested. Each error message names the measurement behind it.
+
+| Rule | Catches |
+| --- | --- |
+| `no-isrtl` | reading `I18nManager.isRTL` (§2) |
+| `no-physical-styles` | `marginLeft` where `marginStart` belongs |
+| `no-dead-logical-props` | `start: 0` plus a `left:` override — the override is dead |
+| `no-textalign-start` | `textAlign: 'start'`, not a valid RN value (§5) |
+| `no-hardcoded-textalign` | `textAlign: 'left'` written into a style object instead of taken from `useDirection()` |
+| `no-direction-ternary` | the double flip — `isRTL ? … : …` on a mirrored property (§1) |
+| `no-literal-row-reverse` | `row-reverse` under a `DirectionProvider`, the same flip spelled out |
+| `no-writingdirection-with-textalign` | `writingDirection` used as if it aligned text (§5) |
+| `no-hardcoded-text` | user-facing strings outside the translation layer (§1b) |
+| `no-hardcoded-webview-dir` | `dir="rtl"` baked into WebView HTML instead of following the app |
+| `require-icon-flip` | a directional icon with no `scaleX` flip |
+| `require-bidi-isolate` | always-LTR data interpolated into RTL text with no isolate (§4) |
 
 `no-hardcoded-text` accepts options if the defaults are too broad or too narrow for a
 codebase:
