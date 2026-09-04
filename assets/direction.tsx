@@ -153,11 +153,20 @@ export function DirectionProvider({
     [dir],
   );
 
-  // No `key` remount needed: T29 row G measured that mutating `direction` on an
-  // already-mounted node applies immediately. (An earlier version keyed this
-  // View on `dir` under the theory that direction only binds at node creation —
-  // that theory was disproven; see RESULTS.md T29.) This is the one place
-  // `direction` behaves better than forceRTL, which does need surface recreation.
+  // No `key` remount needed, and this is now measured on BOTH platforms.
+  //
+  // T29 row G mutates `direction` on an already-mounted node; row H forces a
+  // remount with key={dir}. Both track the toggle, on identical coordinates:
+  //
+  //   Android  G tracks  ->  mutation applies to a live node
+  //   iOS      G 81..524 (ltr) -> 795..1238 (rtl), same as H
+  //
+  // So the theory that `direction` binds only at node creation — which is what
+  // the key={dir} workaround existed to defend against — is disproven on both.
+  // H gains nothing. See RESULTS.md T29.
+  //
+  // This is the one place `direction` behaves better than forceRTL, which does
+  // need surface recreation.
   return (
     <DirectionContext.Provider value={value}>
       <View style={{ flex: 1, direction: enabled ? dir : undefined }}>{children}</View>
