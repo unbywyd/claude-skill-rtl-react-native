@@ -71,9 +71,13 @@ textAlign: I18nManager.isRTL ? 'right' : 'left'
 rendered its text **left-aligned inside an RTL app** — `isRTL` was `false`, so `'left'` won.
 The "recommended fix" row and the "no textAlign" row looked identical.
 
-This is the sharpest form of the problem: `<Text>` does not need `textAlign` at all (R12),
-so `TextInput` is the **one** place the property matters — and it is exactly where reading
-`I18nManager.isRTL` breaks it.
+This is the sharpest form of the problem, and note the `TextInput` is only where it shows up
+*here* — reading `I18nManager.isRTL` is what breaks it.
+
+⚠️ **`<Text>` needs `textAlign` too.** An earlier version of this paragraph said a `<Text>`
+never needs it, on R12's Android-only evidence. That is false on iOS: a `<Text>` with no
+`textAlign` is **always physically left**, so a Hebrew label without it sits on the wrong
+edge. See R30's default matrix — the property is mandatory on both elements.
 
 **Side-by-side proof, same screen, same property, only the source differs** (Arabic build,
 `screenshots/t5-direction-compare.png`):
@@ -389,9 +393,14 @@ which **masks RTL alignment bugs** and makes an empty field's caret position loo
 > Always set `placeholderTextColor` explicitly. The platform default is not reliable across
 > OEM skins, and an invisible placeholder conceals alignment problems.
 
-**2. Placeholders follow layout direction, with or without `textAlign`.** Both Arabic
-placeholders (`أدخل الاسم`) rendered **right-aligned** — including in the field with **no**
+**2. Placeholders follow layout direction, with or without `textAlign`** — *on Android*. Both
+Arabic placeholders (`أدخل الاسم`) rendered **right-aligned**, including the field with **no**
 `textAlign` at all. Consistent with R12.
+
+⚠️ **iOS does not do this.** A placeholder with no `textAlign` is **always physically left**
+on iOS regardless of its script (R30/T30e), so an Arabic or Hebrew form is left-aligned at
+rest and each field snaps to the right as it is filled. Do not read this row as
+cross-platform.
 
 ### ⚠️ R13b · The `isRTL` bug is INVISIBLE on same-script content
 
@@ -972,9 +981,12 @@ Two identical Hebrew strings, one with `writingDirection: 'rtl'` and one with `'
 > within a string, not the alignment of the block. `textAlign` is the only property that
 > decides which edge text sits against.
 
-Also confirmed here: an explicit `textAlign` **overrides layout direction** — a
-`textAlign: 'left'` row stayed left-aligned inside the RTL screen. That is what makes it the
-correct tool for always-LTR data.
+Also confirmed here, **for this lever only**: under `forceRTL` / app-language RTL an explicit
+`textAlign` **overrides layout direction** — a `textAlign: 'left'` row stayed left-aligned
+inside the RTL screen.
+
+⚠️ **Do not generalise that sentence.** It does not hold inside a `direction` island, and the
+island is the lever R22 recommends. Read the correction below before using this.
 
 > ⚠️ **Scope correction (R30).** The sentence above is true for the lever measured here —
 > `forceRTL` / app-language RTL — and **false inside a `direction` island**, which is the
@@ -1401,8 +1413,10 @@ const { isRTL } = useDirection();
 
 ## R30 · Inside a `direction` island, `textAlign` is mirrored on `<Text>` and not on `<TextInput>`
 
-**Status:** ✅ measured on Android (T30, T30b). Galaxy S21 Ultra, Android 15, RN 0.86.2 /
-Fabric, app language `he`. **iOS not yet measured — the open item.**
+**Status:** ✅ measured on **both** platforms. Galaxy S21 Ultra, Android 15 · iPhone 16 Pro
+Max, iOS 26.6.1 (physical devices), RN 0.86.2 / Fabric, app language `he`. The explicit-value
+behaviour below is identical on both, and was re-measured on iOS under a build-time
+`forcesRTL:true` build as well — no row moved.
 
 **This is the sharpest trap in the set**, because a screen with the bug looks half-correct:
 one hook value feeds a label and an input, the input renders correctly, and its correctness
