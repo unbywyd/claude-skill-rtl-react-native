@@ -65,7 +65,15 @@ type DirectionValue = {
   dir: 'ltr' | 'rtl';
   /** Language-derived RTL bit. NOT I18nManager.isRTL — that flag is unreliable. */
   isRTL: boolean;
-  /** Multiplier for directional icons: transform: [{ scaleX: flip }]. */
+  /**
+   * Multiplier for directional icons: `transform: [{ scaleX: flip }]`.
+   *
+   * -1 in RTL, so that spelling mirrors the glyph in RTL — correct for an icon
+   * drawn the LTR way (a "next" arrow pointing right). An icon set drawn for
+   * RTL needs `-flip` instead, which leaves it alone in the language it was
+   * drawn for. See R31: applying `flip` to an RTL-drawn glyph turns it the
+   * wrong way in Hebrew, where it was already right.
+   */
   flip: 1 | -1;
   /**
    * textAlign for text that must hug the READING edge — a label, a heading,

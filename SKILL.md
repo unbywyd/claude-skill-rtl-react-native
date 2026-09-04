@@ -170,8 +170,9 @@ language switch and **no reload**:
 <View style={{ flexDirection: 'row', marginStart: 16 }} />
 
 // 3. What Yoga cannot infer — from the SAME state, never I18nManager:
-const { isRTL, textAlign, textAlignInput } = useDirection();
-<Icon style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }} />
+const { isRTL, flip, textAlign, textAlignInput } = useDirection();
+<Icon style={{ transform: [{ scaleX: flip }] }} />   // glyph drawn for LTR
+<Icon style={{ transform: [{ scaleX: -flip }] }} />  // glyph drawn for RTL
 
 // 4. textAlign: TWO rules, because the two elements behave OPPOSITELY (T30/T30b).
 <Text style={{ textAlign }} />            // 'left' in BOTH directions — Yoga mirrors it
@@ -203,6 +204,27 @@ to put the scope in the name.
 They are **not a closed system**: a badge from a UI kit, a chart's axis labels, a third-party
 component taking a `title` string all render text the primitives never see. For those, the
 rules below are still the answer.
+
+### ⚠️ The flip multiplier depends on which way the SOURCE GLYPH points
+
+`flip` is `-1` in RTL, so `scaleX: flip` mirrors the icon **in RTL**. That is
+right only when the glyph is drawn pointing the LTR way — a "next" arrow drawn
+pointing right, which then needs mirroring for Hebrew.
+
+An icon set drawn for RTL needs the opposite: `-flip`, which leaves the glyph
+alone in the language it was drawn for and mirrors it for the other. Applying
+`flip` to an RTL-drawn glyph turns it the wrong way **in Hebrew**, where it was
+already correct, and leaves it wrong in English — the failure is invisible in
+review because the icon does move, just in the wrong direction.
+
+```jsx
+// A chevron drawn pointing RIGHT — "back" in Hebrew:
+<Icon style={{ transform: [{ scaleX: -flip }] }} />
+```
+
+**Write which way each glyph is drawn in a comment beside it.** The multiplier
+cannot be checked without knowing that, and a reader who assumes wrong produces
+a back arrow that reads as "forward".
 
 ### ⚠️ `textAlign` is mirrored on `<Text>` and not on `<TextInput>`
 

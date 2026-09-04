@@ -1332,7 +1332,11 @@ const dir  = isRTLLanguage(lang) ? 'rtl' : 'ltr';
 const flip = isRTLLanguage(lang) ? -1 : 1;
 
 <View style={{ direction: dir }}>
-  <Text style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{label}</Text>
+  {/* 'left' in BOTH directions — Yoga mirrors textAlign inside the island (R30).
+      The pre-R30 `dir === 'rtl' ? 'right' : 'left'` here was the double flip. */}
+  <Text style={{ textAlign: 'left' }}>{label}</Text>
+  {/* scaleX: flip mirrors in RTL, which is right for an LTR-DRAWN glyph.
+      An RTL-drawn one takes -flip. See R31. */}
   <Icon style={{ transform: [{ scaleX: flip }] }} />
 </View>
 ```
@@ -1597,6 +1601,49 @@ wrong edge while the phone input beside it looked perfect.
 
 ---
 
+---
+
+## R31 · The flip multiplier depends on which way the SOURCE GLYPH is drawn
+
+**Status:** ✅ observed in production, both directions, on a Hebrew screen.
+
+`flip` is `-1` in RTL, so `transform: [{ scaleX: flip }]` mirrors an icon **in
+RTL**. Every example in this file and in SKILL.md shows exactly that, and it is
+correct — for a glyph drawn the LTR way.
+
+**It is backwards for an icon set drawn for RTL.** Simply Touch's
+`DirectionalIcons` are drawn pointing the Hebrew way, and the file says so in
+its own comments:
+
+```jsx
+{/* Drawn pointing RIGHT (the RTL "back"); scaleX flips it for LTR. */}
+<Svg style={{ transform: [{ scaleX: flip }] }}>
+```
+
+The comment describes the intent and the code does the opposite: `flip` is `-1`
+in Hebrew, so the glyph was mirrored in the language it was drawn for and left
+alone in the other. The header's back arrow pointed LEFT in Hebrew, which reads
+as "forward".
+
+| Glyph drawn for | Correct multiplier | Effect |
+| --- | --- | --- |
+| LTR (arrow points right) | `scaleX: flip` | mirrored in RTL |
+| RTL (arrow points left/right per Hebrew) | `scaleX: -flip` | left alone in RTL, mirrored for LTR |
+
+**Why it survives review:** the icon *does* move when the language changes, so
+the mechanism looks wired up. Only the direction is wrong, and on a
+Hebrew-only screen there is nothing to compare it against.
+
+> **Rule for the agent:** state which way each glyph is drawn in a comment
+> beside it, and pick the multiplier from that. `scaleX: flip` is not a
+> universal spelling — it is the LTR-drawn case, which is merely the common one.
+
+**Same shape as R30:** a rule that is correct under one unstated precondition,
+written down as if it held for all of them. The four conditions R30 names —
+lever, element, script, width — gain a fifth for icons: **the glyph's drawn
+direction.**
+
+---
 ## R23 · Enforce these rules with a linter, not with discipline
 
 **Status:** ✅ implemented and tested in this repo — [`tools/eslint-plugin-rtl/`](tools/eslint-plugin-rtl/index.js)
