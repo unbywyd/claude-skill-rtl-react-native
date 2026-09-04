@@ -933,6 +933,21 @@ copy the old "add the reanimated plugin last" advice into a modern Expo project.
 **Status:** ✅ measured, both halves, controlled probe strings. Galaxy S21 Ultra, Android 15,
 RN 0.86.2 / Fabric.
 
+### Conditions this rule was measured under
+
+| Condition | Measured under | Not measured under |
+| --- | --- | --- |
+| **LEVER** | app-language RTL / `forceRTL` | a `direction` island — **the closing paragraph of this rule is false there** (R30) |
+| **ELEMENT** | `<Text>` | `<TextInput>`, whose default follows the script instead (R30) |
+| **SCRIPT** | latin · hebrew, both probed | — |
+| **WIDTH** | full | constrained + overflowing, where box and truncation diverge (R14/T27) |
+| **PLATFORM** | Android | iOS — the default differs there (R30) |
+
+This header exists because of what happened without it: the rule was correct under its own
+conditions, none of which were written down, and the closing paragraph was carried into a
+`direction`-island codebase where it is the opposite of true. **The fix was never to change a
+number — it was to name the condition.**
+
 **This refutes the most widely-cited claim about RN text alignment.** The RN 2016 blog says
 *"In Android, the default text alignment depends on the language of the text content"*. On
 this version it does not.
@@ -1184,11 +1199,19 @@ vertically** (T27 §6) — tight line height breaks multi-line text before it br
 
 Measured on iOS (T27 §6b, `numberOfLines={1}` in a 180dp box, `screenshots/t27-ellipsis-ios.png`):
 
-| String | Text hugs | Ellipsis |
+`width: 180`, `numberOfLines={1}`, string overflows the box. **Both columns matter:** the box
+is where layout put it, the ellipsis is where bidi cut the string.
+
+| String | Box (from the tint) | Ellipsis end |
 | --- | --- | --- |
-| Hebrew | right | **left** ✅ |
-| English | left | **right** ✅ |
-| Mixed | — | at the reading end of the run ✅ |
+| Hebrew | x=81..620 | **left** — start of the run ✅ |
+| English | x=81..620 | **right** ✅ |
+| Mixed | x=81..620 | at the reading end of the run ✅ |
+
+The box is **identical to the pixel across both scripts** — which is the direct proof that
+the script moved the ellipsis and never the box. An earlier version of this table had a "Text
+hugs" column reading Hebrew → right; that was the truncation being read as alignment, and the
+box was at the left throughout.
 
 The ellipsis is placed from the **paragraph direction of the string itself**, not from a fixed
 physical side and not from the app's direction flag — it was correct while the layout was LTR and
@@ -1422,9 +1445,23 @@ const { isRTL } = useDirection();
 ## R30 · Inside a `direction` island, `textAlign` is mirrored on `<Text>` and not on `<TextInput>`
 
 **Status:** ✅ measured on **both** platforms. Galaxy S21 Ultra, Android 15 · iPhone 16 Pro
-Max, iOS 26.6.1 (physical devices), RN 0.86.2 / Fabric, app language `he`. The explicit-value
-behaviour below is identical on both, and was re-measured on iOS under a build-time
-`forcesRTL:true` build as well — no row moved.
+Max, iOS 26.6.1 (physical devices), RN 0.86.2 / Fabric, app language `he`.
+
+### Conditions this rule was measured under
+
+Four conditions decide the answer, and **every defect this rule exists to correct was a
+result measured under one of them and written down as if it held for all four.** They are
+stated as a header rather than as prose because prose advice is what the file already had.
+
+| Condition | Values measured | Does it change the answer? |
+| --- | --- | --- |
+| **LEVER** | `direction` island · build-time `forcesRTL:true` · none | **Yes** — this is R12's error. `textAlign` is mirrored inside a `direction` island and not under `forceRTL`. Re-measured on iOS under `forcesRTL:true`: no row moved, so the *explicit* behaviour is lever-independent there. |
+| **ELEMENT** | `<Text>` · `<TextInput>` value · `<TextInput>` placeholder | **Yes** — the whole rule. `<Text>` is mirrored, an input is physical, and their *defaults* differ again. |
+| **SCRIPT** | latin · hebrew | **For defaults only.** An input's default follows the script (first-strong) on both platforms; a `<Text>`'s never does. Irrelevant to every explicit value. |
+| **WIDTH** | full · `180` + `numberOfLines={1}` | **Not for alignment — but it is how R14/T27 was misread.** A constrained `<Text>` filled by an overflowing string has two placements: where the box sits (this rule) and which end is truncated (bidi, R14). Ink alone cannot separate them. |
+
+Rows below are full-width unless stated. A row missing any of these four is a row that has
+not been re-measured under them — leave the cell blank rather than inferring it.
 
 **This is the sharpest trap in the set**, because a screen with the bug looks half-correct:
 one hook value feeds a label and an input, the input renders correctly, and its correctness
