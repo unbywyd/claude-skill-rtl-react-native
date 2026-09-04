@@ -1192,7 +1192,15 @@ Measured on iOS (T27 §6b, `numberOfLines={1}` in a 180dp box, `screenshots/t27-
 
 The ellipsis is placed from the **paragraph direction of the string itself**, not from a fixed
 physical side and not from the app's direction flag — it was correct while the layout was LTR and
-`isRTL === false`. Same mechanism as default text alignment (R12) and bidi reordering (R14).
+`isRTL === false`. This is **bidi reordering (R14)**, not alignment.
+
+> ⚠️ It used to cite R12 (alignment) as the same mechanism. It is not, and the difference is
+> a trap worth naming: a `width`-constrained `<Text>` whose string overflows has **two**
+> placements — where the **box** sits (layout, R12/R30) and which **end of the string** is
+> truncated (bidi, this rule). With the box exactly filled they are easy to confuse, and one
+> session read the ellipsis sitting at the left of a Hebrew string as *the text hugging
+> right*; the box had been at the left throughout. Measuring ink alone cannot separate them —
+> tint the background to see the box, or use a full-width row where box and text coincide.
 
 > Do **not** special-case truncation for RTL. No `textAlign`, no `isRTL`, no per-language branch.
 > Any code that "fixes" the ellipsis side is fixing something that already works, and will break it.

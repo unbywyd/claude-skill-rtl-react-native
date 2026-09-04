@@ -29,6 +29,21 @@ command, so you get `/rtl-react-native` rather than the full repo name.
 
 Verify with `/doctor`, or just ask Claude something RTL-shaped and watch it pick the skill up.
 
+### Updating
+
+```bash
+cd ~/.claude/skills/rtl-react-native && git pull
+```
+
+**Nothing does this for you, and nothing warns you.** The installed copy is a clone, so a
+machine that has the skill installed keeps serving whatever it was cloned at — for as long as
+nobody pulls. That failure is silent and it looks exactly like the skill being wrong: Claude
+confidently applies a rule that was corrected months ago.
+
+It has already happened once during this project's own measurements — a paired session was
+five commits behind, missing an entire rule, while the other machine was current. Pull before
+trusting a rule you are about to rely on, and after anyone tells you a rule changed.
+
 ---
 
 ## Why it exists
