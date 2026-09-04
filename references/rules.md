@@ -1469,7 +1469,16 @@ island and ltr island, Latin and Hebrew alike. `<TextInput>` matches Android exa
 | Element | Android default | iOS default |
 | --- | --- | --- |
 | `<Text>` | island direction (script ignored) | **app UI direction** (island *and* script ignored) |
-| `<TextInput>` | content, first-strong | content, first-strong — same |
+| `<TextInput>` placeholder | content, first-strong | **app UI direction** |
+| `<TextInput>` value | content, first-strong | content, first-strong — the only row that agrees |
+
+**T30e, the placeholder row.** Android: Hebrew 407..950 right, Latin 129..520 left —
+first-strong, like the value. iOS: both left, the same `NSTextAlignmentNatural` path as
+`<Text>`, because a placeholder never becomes the field's attributed value.
+
+From identical code, an empty Hebrew form shows its placeholders **right on Android** and
+**left on iOS** — looking broken at rest, then snapping right field by field as it is filled.
+The device most likely to be doing the Hebrew review is the Android one.
 
 iOS mechanism, from RN's own source: `RCTAttributedTextUtils.mm:200-206` flips an explicit
 Left/Right by the island's `layoutDirection`, and passes `Natural` through untouched to
