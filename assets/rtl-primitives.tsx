@@ -148,6 +148,20 @@ export function Num({ children, ...rest }: TextProps & { children: string | numb
  *     book, because the deciding character is whatever the data happens to
  *     start with (T30h). No amount of care about the data makes the form
  *     consistent — only this property does.
+ *
+ * T30h is worth stating precisely, because it is the one row measured on both
+ * platforms with the two candidate rules put in conflict. Each string's first
+ * strong character disagreed with the bulk of its content:
+ *
+ *                              Android            iOS
+ *   "Acme שלום עולם…"  (bulk HE)  132..672  LEFT    137..668   LEFT
+ *   "שלום Acme Corp…"  (bulk EN)  427..950  RIGHT   652..1180  RIGHT
+ *
+ * Opposite edges on both platforms, and the majority script is irrelevant on
+ * both. So "first-strong" is literally true — the FIRST STRONG CHARACTER of
+ * the value — and not shorthand for "the string's language". This is the one
+ * behaviour in the whole matrix that agrees across platforms, which is why
+ * this component can derive a single value instead of branching per OS.
  */
 export function Field({ style, ...rest }: TextInputProps) {
   const { textAlignInput } = useDirection();
