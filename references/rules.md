@@ -1468,8 +1468,8 @@ island and ltr island, Latin and Hebrew alike. `<TextInput>` matches Android exa
 
 | Element | Android default | iOS default |
 | --- | --- | --- |
-| `<Text>` | island direction (script ignored) | **app UI direction** (island *and* script ignored) |
-| `<TextInput>` placeholder | content, first-strong | **app UI direction** |
+| `<Text>` | island direction (script ignored) | **always physically LEFT** |
+| `<TextInput>` placeholder | content, first-strong | **always physically LEFT** |
 | `<TextInput>` value | content, first-strong | content, first-strong — the only row that agrees |
 
 **T30e, the placeholder row.** Android: Hebrew 407..950 right, Latin 129..520 left —
@@ -1482,8 +1482,14 @@ The device most likely to be doing the Hebrew review is the Android one.
 
 iOS mechanism, from RN's own source: `RCTAttributedTextUtils.mm:200-206` flips an explicit
 Left/Right by the island's `layoutDirection`, and passes `Natural` through untouched to
-`NSTextAlignmentNatural` — which UIKit resolves against the **app's interface direction**,
-not the paragraph. In an app driving direction from state, that interface direction is LTR,
+`NSTextAlignmentNatural` — which resolves to **Left regardless**. RN renders paragraph text
+into a container whose writing direction is not driven by the app-level flag at all.
+
+**Verified against the obvious alternative explanation.** "iOS follows the app's UI
+direction" was the first reading, and it was wrong: a native forced-RTL build
+(`expo-localization` `forcesRTL: true`, confirmed in `Info.plist`, `isRTL=true` at runtime,
+tab bar and reference rows mirrored) produced **identical coordinates on every row**, to the
+pixel. Nothing about the app's own direction reaches these defaults. In an app driving direction from state, that interface direction is LTR,
 because `forceRTL` never applied (R22).
 
 ⚠️ **So the property is mandatory on BOTH elements, for different reasons.**

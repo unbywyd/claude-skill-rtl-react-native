@@ -209,13 +209,15 @@ platforms:
 
 | Element | Android default | iOS default |
 | --- | --- | --- |
-| `<Text>` | the island's direction | **the app's UI direction** — LTR in any app driving direction from state |
-| `<TextInput>` placeholder | the content, first-strong | **the app's UI direction** |
+| `<Text>` | the island's direction | **always physically LEFT** |
+| `<TextInput>` placeholder | the content, first-strong | **always physically LEFT** |
 | `<TextInput>` value | the content, first-strong | the content, first-strong |
 
-Only the last row agrees across platforms. Each OS is internally consistent and the two rules
-are different: **iOS** takes the app's UI direction for everything except a typed value;
-**Android** follows the content inside an input and the island in a `<Text>`.
+Only the last row agrees across platforms. **On iOS nothing moves a `<Text>` or a
+placeholder off the left edge** — not the island, not the script, and not the app's own
+direction: measured identical, to the pixel, in a natively forced-RTL build
+(`isRTL=true`, whole app mirrored) and in a state-driven one. There is no iOS configuration
+in which omitting the property is safe.
 
 Three distinct bugs come out of that:
 
@@ -379,9 +381,9 @@ lowercase identifier, not a URL — so `testID`, style values and keys do not tr
 | "Text is left on iOS, fine on Android" | Set `textAlign` explicitly from app state — the right one per element (§3). |
 | "The label is on the wrong edge but the input next to it is fine" | One `textAlign` value fed both. `<Text>` is mirrored by the island, `<TextInput>` is not (§3). |
 | "It was correct until I wrapped the app in DirectionProvider" | `textAlign` on `<Text>` now mirrors. Drop the `isRTL ?` ternary there (§3). |
-| "The Hebrew label is on the left, but only on iOS" | No `textAlign` on that `<Text>`. iOS falls back to the app's UI direction, Android to the island's (§3). |
+| "The Hebrew label is on the left, but only on iOS" | No `textAlign` on that `<Text>`. On iOS the default is always physically left; Android follows the island (§3). |
 | "The field jumps sides as the user types" | No `textAlign` on that `<TextInput>`. Its default is first-strong, so it follows the value (§3). |
-| "The Hebrew form is left-aligned until you type, but only on iOS" | No `textAlign` on those inputs. The placeholder takes the app's UI direction on iOS, first-strong on Android (§3). |
+| "The Hebrew form is left-aligned until you type, but only on iOS" | No `textAlign` on those inputs. On iOS a placeholder is always physically left; Android resolves it first-strong (§3). |
 | "Blur only tints on Android" | Missing one of the four blur conditions (§7). |
 | "The keyboard covers the input" | Edge-to-edge killed `adjustResize` (§6). |
 | "It looks right on my device" | Not evidence. Read the code (§8.4). |

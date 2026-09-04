@@ -87,8 +87,9 @@ type DirectionValue = {
    * textAlign resolves DIFFERENTLY on each platform (T30d):
    *
    *   Android: the island's direction.
-   *   iOS:     the app's UI direction, which is LTR in any app driving
-   *            direction from state — so a Hebrew label lands on the LEFT.
+   *   iOS:     always physically LEFT — not the island, not the script, and
+   *            not the app's own direction (measured identical in a natively
+   *            forced-RTL build), so a Hebrew label lands on the LEFT.
    *
    * Identical code, correct on Android, wrong on iOS, invisible to a
    * Hebrew-only review done on an Android device.
